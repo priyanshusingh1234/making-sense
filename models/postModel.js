@@ -1,14 +1,12 @@
-const {Schema , model} = require("mongoose")
+const mongoose = require('mongoose');
 
+const postSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  category: { type: String, required: true },
+  description: { type: String, required: true },
+  creator: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  thumbnail: { type: String, required: true }, // Filename of the image
+  thumbnailId: { type: String, required: true } // ID of the image in GridFS
+}, { timestamps: true });
 
-const postSchema = new Schema({
-    title:{type: String,required:true},
-    category:{type: String, enum: ["Agriculture" , "Bussiness", "Weather", "Art","Uncategorised", "Entertainment", "Education"], message:"VALUE is not supported"},
-    title:{type: String,required:true},
-    description:{type: String,required:true},
-    thumbnail:{type: String,required:true},
-    creator:{type: Schema.Types.ObjectId, ref: "User"},
-   
-}, {timestamps: true})
-
-module.exports = model("Post", postSchema)
+module.exports = mongoose.model('Post', postSchema);
