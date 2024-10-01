@@ -111,41 +111,52 @@ const editPost = async (req, res, next) => {
     }
 
     let updatedPost;
-
-    if (!req.files) {
-      // Update without thumbnail
+    
+    // If there's no new thumbnail, simply update other fields
+    if (!req.files || !req.files.thumbnail) {
       updatedPost = await Post.findByIdAndUpdate(postId, { title, category, description }, { new: true });
     } else {
-      // Delete old thumbnail
-      const oldThumbnailPath = path.join(__dirname, '..', 'uploads', oldPost.thumbnail);
-      fs.unlink(oldThumbnailPath, async (err) => {
-        if (err) return next(new HttpError("Error deleting the old thumbnail.", 500));
-      });
-
-      // Upload new thumbnail
+      // Handle the thumbnail update
       const { thumbnail } = req.files;
+
+      // Validate thumbnail size
       if (thumbnail.size > 2000000) {
         return next(new HttpError("Thumbnail must be less than 2 MB.", 422));
       }
 
+      // Delete old thumbnail if exists
+      if (oldPost.thumbnail) {
+        const oldThumbnailPath = path.join(__dirname, '..', 'uploads', oldPost.thumbnail);
+        if (fs.existsSync(oldThumbnailPath)) {
+          fs.unlink(oldThumbnailPath, (err) => {
+            if (err) {
+              console.error("Error deleting the old thumbnail:", err);
+              return next(new HttpError("Error deleting the old thumbnail.", 500));
+            }
+          });
+        }
+      }
+
+      // Create new thumbnail name and move it
       let fileName = thumbnail.name;
       let splittedFileName = fileName.split('.');
       let newFileName = splittedFileName[0] + uuid() + "." + splittedFileName[splittedFileName.length - 1];
 
       thumbnail.mv(path.join(__dirname, '..', 'uploads', newFileName), async (err) => {
         if (err) {
-          return next(new HttpError(err.message, 500));
+          return next(new HttpError("Error uploading the new thumbnail.", 500));
         }
+
+        // Update the post with the new thumbnail and other fields
+        updatedPost = await Post.findByIdAndUpdate(postId, { title, category, description, thumbnail: newFileName }, { new: true });
+
+        if (!updatedPost) {
+          return next(new HttpError("Could not update post.", 400));
+        }
+
+        res.status(200).json(updatedPost);
       });
-
-      updatedPost = await Post.findByIdAndUpdate(postId, { title, category, description, thumbnail: newFileName }, { new: true });
     }
-
-    if (!updatedPost) {
-      return next(new HttpError("Could not update post.", 400));
-    }
-    
-    res.status(200).json(updatedPost);
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
