@@ -12,6 +12,7 @@ const {
 const authMiddleware = require('../middleware/authMiddleware');
 const multer = require('multer');
 const { GridFsStorage } = require('multer-gridfs-storage');
+const mongoose = require('mongoose');
 
 // MongoDB URI
 const mongoURI = process.env.MONGODB_URI;
@@ -51,5 +52,22 @@ router.get('/categories/:category', getCatPosts);
 
 // Route to delete a post
 router.delete('/:id', authMiddleware, deletePost);
+
+// Route to retrieve uploaded images from GridFS
+router.get('/uploads/:filename', async (req, res) => {
+  const { filename } = req.params;
+  const conn = mongoose.createConnection(mongoURI);
+  const bucket = new mongoose.mongo.GridFSBucket(conn.db, {
+    bucketName: 'uploads',
+  });
+
+  bucket.find({ filename }).toArray((err, files) => {
+    if (!files || files.length === 0) {
+      return res.status(404).json({ message: 'No file found' });
+    }
+
+    bucket.openDownloadStreamByName(filename).pipe(res);
+  });
+});
 
 module.exports = router;
