@@ -8,9 +8,28 @@ const {
   getUserPosts,
   getPosts,
   getPost
-} = require('../controllers/postController'); // Ensure this matches your controller file name
+} = require('../controllers/postController');
 const authMiddleware = require('../middleware/authMiddleware');
-const upload = require('../middleware/uploadMiddleware'); // Import the multer middleware for handling file uploads
+const multer = require('multer');
+const { GridFsStorage } = require('multer-gridfs-storage');
+
+// MongoDB URI
+const mongoURI = process.env.MONGODB_URI;
+
+// Setup GridFS storage engine
+const storage = new GridFsStorage({
+  url: mongoURI,
+  options: { useNewUrlParser: true, useUnifiedTopology: true },
+  file: (req, file) => {
+    return {
+      filename: `${Date.now()}_${file.originalname}`,
+      bucketName: 'uploads', // Files collection name
+    };
+  },
+});
+
+// Multer middleware
+const upload = multer({ storage });
 
 // Route to create a post with file upload
 router.post('/', authMiddleware, upload.single('thumbnail'), createPost);
